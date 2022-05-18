@@ -27,14 +27,24 @@ NS_ASSUME_NONNULL_BEGIN
 /**  默认YES 自动优化， 相同斜率上面的点 不会作为锚点固定位置 */
 @property(assign, nonatomic)BOOL autoOptimize;
 
+/**  默认NO， 双击点，删除点 */
+@property(assign, nonatomic)BOOL doubleClickToRemovePoint;
 
 
 
 
-@property(nonatomic, strong)void(^valueChangeHandler)(id changeValue, id changeValue2, NSInteger index);
 
+@property(nonatomic, strong)void(^pointSelectedHandler)(CGPoint point, NSInteger index);
+@property(nonatomic, strong)void(^pointDeletedHandler)(CGPoint point, NSInteger index);
+@property(nonatomic, strong)void(^pointChangeHandler)(CGPoint point, NSInteger index);
 
+/**  需要第一次  设置完Frame初始化一次 */
 -(void)initData;
+
+-(void)deletePoint:(CGPoint)point;
+-(void)deletePointWithIndex:(NSInteger)index;
+
+
 
 
 

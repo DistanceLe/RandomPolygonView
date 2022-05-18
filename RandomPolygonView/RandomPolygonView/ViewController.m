@@ -23,6 +23,8 @@
     subView.frame = CGRectMake(100, 100, 200, 200);
     subView.backgroundColor = [UIColor lightGrayColor];
     subView.layer.masksToBounds = NO;
+    subView.doubleClickToRemovePoint = YES;
+    subView.gestureWidth = 100;
     [subView initData];
     [self.view addSubview:subView];
 }

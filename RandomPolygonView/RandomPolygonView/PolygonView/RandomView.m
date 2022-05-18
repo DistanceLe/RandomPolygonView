@@ -24,6 +24,7 @@
 
 @property(nonatomic, strong)NSMutableArray* pointsArray;
 
+@property(assign, nonatomic)NSInteger selectedIndex;
 @property(assign, nonatomic)NSInteger touchIndex;
 @property(nonatomic, assign)CGPoint originCenter;
 @property(nonatomic, assign)CGPoint superBeginTouchPoint;
@@ -52,17 +53,17 @@
         
         self.hasEqualAfter = NO;
         self.hasEqualBefore = NO;
+        
+        self.doubleClickToRemovePoint = NO;
+        
     }
     return self;
 }
 
 
--(CGFloat)getLengthFromPoint:(CGPoint)fromPoint toPoint:(CGPoint)toPoint{
-    CGFloat length = sqrtf(powf((fromPoint.x-toPoint.x), 2)+powf((fromPoint.y-toPoint.y), 2));
-    return length;
-}
 -(void)initData{
     self.touchIndex = -1;
+    self.selectedIndex = -1;
     self.pointsArray = [NSMutableArray array];
     self.layerArray = [NSMutableArray array];
     
@@ -141,6 +142,65 @@
             [self endGesture];
         }
     }];
+    
+    [self addMultipleTap:2 gestureHandler:^(UITapGestureRecognizer *tapGesture, UIView *itself) {
+        @strongify(self);
+        if (self.doubleClickToRemovePoint) {
+            NSInteger tempIndex = -1;
+            CGFloat minLength = 1000;
+            CGPoint superTouchPoint = [tapGesture locationInView:self.superview];
+            
+            for (NSInteger i = 0; i<self.pointsArray.count; i++) {
+                CGPoint subPoint = [self.pointsArray[i] CGPointValue];
+                
+                CGFloat tempLength = [self getLengthFromPoint:subPoint toPoint:superTouchPoint];
+                if (tempLength < self.gestureWidth && minLength > tempLength) {
+                    tempIndex = i;
+                    minLength = tempLength;
+                }
+            }
+            if (tempIndex != -1) {
+                [self deletePointWithIndex:tempIndex];
+            }
+        }
+    }];
+    [self addTapGestureHandler:^(UITapGestureRecognizer *tapGesture, UIView *itself) {
+        @strongify(self);
+        
+        NSInteger tempIndex = -1;
+        CGFloat minLength = NSIntegerMax;
+        CGPoint superTouchPoint = [tapGesture locationInView:self.superview];
+        
+        for (NSInteger i = 0; i<self.pointsArray.count; i++) {
+            CGPoint subPoint = [self.pointsArray[i] CGPointValue];
+            
+            CGFloat tempLength = [self getLengthFromPoint:subPoint toPoint:superTouchPoint];
+            if (tempLength < self.gestureWidth && minLength > tempLength) {
+                tempIndex = i;
+                minLength = tempLength;
+            }
+        }
+        
+        if (self.selectedIndex == tempIndex) {
+            [self selectedIndexCallBack:-1];
+        }else{
+            [self selectedIndexCallBack:tempIndex];
+        }
+        [self setNeedsDisplay];
+    }];
+}
+
+-(void)selectedIndexCallBack:(NSInteger)index{
+    self.selectedIndex = index;
+    if (index == -1) {
+        if (self.pointSelectedHandler) {
+            self.pointSelectedHandler(CGPointZero, -1);
+        }
+    }else{
+        if (self.pointSelectedHandler) {
+            self.pointSelectedHandler([self.pointsArray[self.selectedIndex] CGPointValue], self.selectedIndex);
+        }
+    }
 }
 
 -(void)beginGesture{
@@ -148,6 +208,8 @@
     [self.superview bringSubviewToFront:self];
     self.hasEqualAfter = NO;
     self.hasEqualBefore = NO;
+    
+    [self selectedIndexCallBack:self.touchIndex];
 }
 
 -(void)endGesture{
@@ -165,6 +227,10 @@
             
             //插入新的点
             [self.pointsArray insertObject:@(newPoint1) atIndex:(self.touchIndex)];
+            
+            if (self.selectedIndex == self.touchIndex) {
+                [self selectedIndexCallBack:self.touchIndex+1];
+            }
             hasInsertPoint = 1;
             DLog(@"新加点＋:%.1f,%.1f", newPoint1.x,newPoint1.y);
         }
@@ -234,7 +300,9 @@
     self.pointsArray[self.touchIndex] = @(newPoint);
     DLog(@"移动中......%.1f, %.1f  新点:(%.1f,%.1f)", offset.x, offset.y, newPoint.x,newPoint.y);
     
-    
+    [self refreshFrame];
+}
+-(void)refreshFrame{
     //计算新的Frame
     CGFloat minX = 0;
     CGFloat minY = 0;
@@ -288,7 +356,6 @@
         NSMutableArray* pointArray = [NSMutableArray array];
         CGFloat minX = self.lj_x;
         CGFloat minY = self.lj_y;
-        CGFloat pointWidth = self.pointWidth;
         
         for (NSInteger i = 0; i < self.pointsArray.count; i++) {
             
@@ -296,16 +363,31 @@
             //需要吧父视图的坐标点，转化为当前视图左上角为坐标系原点的坐标
             subPoint = CGPointMake(subPoint.x - minX, subPoint.y - minY);
             
-            //画交界点
-            {
-                CGRect myOval = {subPoint.x-pointWidth/2.0, subPoint.y-pointWidth/2.0, pointWidth, pointWidth};
-                CGContextSetFillColorWithColor(context, self.pointColor.CGColor);
-                CGContextAddEllipseInRect(context, myOval);
-                CGContextFillPath(context);
-            }
             [pointArray addObject:[NSValue valueWithCGPoint:subPoint]];
         }
         [self drawPathWithDataArr:pointArray lineColor:self.lineColor lineWidth:self.lineWidth isDash:NO];
+        
+        
+        
+        //画交界点
+        [self addPointPathWithArray:pointArray];
+        
+        //下面的方法，画出来的圆点，会在视图的最底层，而且超出的部分不会显示出来。
+//        for (NSInteger i = 0; i < pointArray.count; i++) {
+//
+//            CGPoint subPoint = [pointArray[i] CGPointValue];
+//            CGFloat pointWidth = self.pointWidth;
+//            if (i == self.selectedIndex) {
+//                pointWidth *= 1.5;
+//            }
+//            //画交界点
+//            {
+//                CGRect myOval = {subPoint.x-pointWidth/2.0, subPoint.y-pointWidth/2.0, pointWidth, pointWidth};
+//                CGContextSetFillColorWithColor(context, self.pointColor.CGColor);
+//                CGContextAddEllipseInRect(context, myOval);
+//                CGContextFillPath(context);
+//            }
+//        }
     }
 }
 
@@ -350,6 +432,79 @@
     [self.layer addSublayer:shapeLayer];
     [self.layerArray addObject:shapeLayer];
 }
+
+/**  画小圆点 */
+-(void)addPointPathWithArray:(NSArray*)pointArray{
+    
+    CAShapeLayer* roundLayer = [CAShapeLayer layer];
+    roundLayer.frame = self.bounds;
+    
+    CGMutablePathRef mutablePath = CGPathCreateMutable();
+    for (NSInteger i = 0; i < pointArray.count; i++) {
+        CGFloat pointWidth = self.pointWidth;
+        if (i == self.selectedIndex) {
+            pointWidth *= 1.5;
+        }
+        CGPoint subPoint = [pointArray[i] CGPointValue];
+        CGRect roundRect = {subPoint.x-pointWidth/2.0, subPoint.y-pointWidth/2.0, pointWidth, pointWidth};
+        CGPathAddRoundedRect(mutablePath, nil, roundRect, pointWidth/2.0, pointWidth/2.0);
+    }
+    
+    roundLayer.path = mutablePath;
+    roundLayer.fillColor = self.pointColor.CGColor;
+    [self.layer addSublayer:roundLayer];
+    [self.layerArray addObject:roundLayer];
+}
+
+-(CGFloat)getLengthFromPoint:(CGPoint)fromPoint toPoint:(CGPoint)toPoint{
+    CGFloat length = sqrtf(powf((fromPoint.x-toPoint.x), 2)+powf((fromPoint.y-toPoint.y), 2));
+    return length;
+}
+
+
+
+- (void)deletePoint:(CGPoint)point{
+    
+    for (NSValue* subValue in self.pointsArray) {
+        if (CGPointEqualToPoint(point, [subValue CGPointValue])) {
+            
+            if (self.selectedIndex == [self.pointsArray indexOfObject:subValue]) {
+                
+                [self selectedIndexCallBack:-1];
+            }
+            
+            if (self.pointDeletedHandler) {
+                self.pointDeletedHandler(point, [self.pointsArray indexOfObject:subValue]);
+            }
+            
+            [self.pointsArray removeObject:subValue];
+            [self refreshFrame];
+            return;
+        }
+    }
+}
+
+
+- (void)deletePointWithIndex:(NSInteger)index{
+    
+    if (self.selectedIndex == index) {
+        [self selectedIndexCallBack:-1];
+    }
+    
+    if (self.pointsArray.count > index) {
+        
+        if (self.pointDeletedHandler) {
+            self.pointDeletedHandler([self.pointsArray[index] CGPointValue], index);
+        }
+        [self.pointsArray removeObjectAtIndex:index];
+        [self refreshFrame];
+    }
+}
+
+
+
+
+
 
 
 @end
