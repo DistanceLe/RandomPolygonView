@@ -11,6 +11,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface RandomView : UIView
 
+/**  各个点 在父视图上面的位置  CGPoint */
+@property(nonatomic, strong)NSMutableArray* pointsArray;
 
 @property(nonatomic, strong)UIColor* lineColor;
 @property(nonatomic, strong)UIColor* pointColor;
@@ -30,7 +32,8 @@ NS_ASSUME_NONNULL_BEGIN
 /**  默认NO， 双击点，删除点 */
 @property(assign, nonatomic)BOOL doubleClickToRemovePoint;
 
-
+/**  默认YES 根据手势范围，增加一个边缘。  */
+@property(assign, nonatomic)BOOL addGestureEdge;
 
 
 
@@ -38,7 +41,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, strong)void(^pointDeletedHandler)(CGPoint point, NSInteger index);
 @property(nonatomic, strong)void(^pointChangeHandler)(CGPoint point, NSInteger index);
 
-/**  需要第一次  设置完Frame初始化一次 */
+/**  需要第一次  设置完Frame初始化一次，同时会给 pointsArray 初始化赋值*/
 -(void)initData;
 
 -(void)deletePoint:(CGPoint)point;

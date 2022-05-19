@@ -22,8 +22,6 @@
 @interface RandomView ()
 
 
-@property(nonatomic, strong)NSMutableArray* pointsArray;
-
 @property(assign, nonatomic)NSInteger selectedIndex;
 @property(assign, nonatomic)NSInteger touchIndex;
 @property(nonatomic, assign)CGPoint originCenter;
@@ -56,6 +54,8 @@
         
         self.doubleClickToRemovePoint = NO;
         
+        self.addGestureEdge = YES;
+        
     }
     return self;
 }
@@ -86,7 +86,8 @@
                                             @(CGPointMake(x+0, y+1*height)),
                                             @(CGPointMake(x+0, y+0.5*height))]];
     
-    [self setNeedsDisplay];
+    
+    [self refreshFrame];
     
     @weakify(self);
     [self addPanGestureHandler:^(UIPanGestureRecognizer *panGesture, UIView *itself) {
@@ -332,7 +333,13 @@
             }
         }
     }
-    self.frame = CGRectMake(minX, minY, maxX-minX, maxY-minY);
+    
+    CGFloat frameEdge = self.gestureWidth/2.0;
+    if (!self.addGestureEdge) {
+        frameEdge = 0;
+    }
+    
+    self.frame = CGRectMake(minX-frameEdge, minY-frameEdge, maxX-minX+frameEdge*2, maxY-minY+frameEdge*2);
     
     [self setNeedsDisplay];
 }
@@ -340,7 +347,7 @@
 - (void)drawRect:(CGRect)rect {
     [super drawRect:rect];
     
-    CGContextRef context = UIGraphicsGetCurrentContext();
+//    CGContextRef context = UIGraphicsGetCurrentContext();
     
     for (CALayer* layer in self.layerArray) {
         if (layer) {
