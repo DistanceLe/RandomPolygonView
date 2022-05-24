@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		6A2BEE06283C6DA5002C904F /* RandomView.xib in Resources */ = {isa = PBXBuildFile; fileRef = 6A2BEE05283C6DA5002C904F /* RandomView.xib */; };
 		6AA8E9E72833A45300C64BDA /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 6AA8E9E62833A45300C64BDA /* AppDelegate.m */; };
 		6AA8E9EA2833A45300C64BDA /* SceneDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 6AA8E9E92833A45300C64BDA /* SceneDelegate.m */; };
 		6AA8E9ED2833A45300C64BDA /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 6AA8E9EC2833A45300C64BDA /* ViewController.m */; };
@@ -21,6 +22,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		6A2BEE05283C6DA5002C904F /* RandomView.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = RandomView.xib; sourceTree = "<group>"; };
 		6AA8E9E22833A45300C64BDA /* RandomPolygonView.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RandomPolygonView.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6AA8E9E52833A45300C64BDA /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		6AA8E9E62833A45300C64BDA /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
@@ -93,6 +95,7 @@
 			children = (
 				6AA8E9FF2833A47400C64BDA /* RandomView.h */,
 				6AA8EA002833A47400C64BDA /* RandomView.m */,
+				6A2BEE05283C6DA5002C904F /* RandomView.xib */,
 				6AA8EA012833A47500C64BDA /* UIView+LJ.h */,
 				6AA8EA022833A47500C64BDA /* UIView+LJ.m */,
 				6AA8EA052833A48300C64BDA /* LJGestureView.h */,
@@ -160,6 +163,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				6AA8E9F52833A45600C64BDA /* LaunchScreen.storyboard in Resources */,
+				6A2BEE06283C6DA5002C904F /* RandomView.xib in Resources */,
 				6AA8E9F22833A45600C64BDA /* Assets.xcassets in Resources */,
 				6AA8EA082833A48300C64BDA /* LJGestureView.xib in Resources */,
 				6AA8E9F02833A45300C64BDA /* Main.storyboard in Resources */,

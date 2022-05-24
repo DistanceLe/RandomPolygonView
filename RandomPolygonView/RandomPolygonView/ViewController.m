@@ -21,10 +21,10 @@
     
     RandomView* subView = [[RandomView alloc]init];
     subView.frame = CGRectMake(100, 100, 200, 200);
-    subView.backgroundColor = [UIColor lightGrayColor];
+    subView.backgroundColor = [[UIColor lightGrayColor]colorWithAlphaComponent:0.08];
     subView.layer.masksToBounds = NO;
     subView.doubleClickToRemovePoint = YES;
-    subView.gestureWidth = 100;
+    subView.gestureWidth = 30;
     [subView initData];
     [self.view addSubview:subView];
 }

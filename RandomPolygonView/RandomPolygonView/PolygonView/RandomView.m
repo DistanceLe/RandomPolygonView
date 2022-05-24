@@ -9,18 +9,7 @@
 #import "UIView+LJ.h"
 
 
-//@interface LJLinePoint : NSObject
-//
-//@property (assign, nonatomic) CGFloat x;
-//@property (assign, nonatomic) CGFloat y;
-//
-//@end
-//@implementation LJLinePoint
-//@end
-
-
 @interface RandomView ()
-
 
 @property(assign, nonatomic)NSInteger selectedIndex;
 @property(assign, nonatomic)NSInteger touchIndex;
@@ -32,32 +21,69 @@
 
 @property (nonatomic, strong) NSMutableArray* layerArray;
 
+@property (nonatomic, strong) NSMutableArray* tempScalePointsArray;
+
+@property(assign, nonatomic)BOOL hasShowRoomSelect;
+/**  手势刚开始 就在父视图里面 */
+@property(nonatomic, assign)BOOL inGestureOK;
+@property(nonatomic, assign)BOOL customStartGesture;
+
+
+
+
 @end
 
+
 @implementation RandomView
+
+
+-(void)awakeFromNib{
+    [super awakeFromNib];
+    
+    //Xib 会自动调整视图的大小。。。  需要关闭
+    self.autoresizingMask = UIViewAutoresizingNone;
+    
+    self.countLabel.backgroundColor = kRGBColor(220, 220, 220, 1);
+    self.countLabel.layer.cornerRadius = 9;
+    self.countLabel.layer.masksToBounds = YES;
+    self.countLabel.textColor = kTextColor;
+    
+    [self initOriginData];
+}
+
 
 - (instancetype)init
 {
     self = [super init];
     if (self) {
-        self.lineColor = [UIColor greenColor];
-        self.pointColor = [UIColor redColor];
-        
-        self.lineWidth = 2;
-        self.pointWidth = 6;
-        self.gestureWidth = 50;
-        
-        self.autoOptimize = YES;
-        
-        self.hasEqualAfter = NO;
-        self.hasEqualBefore = NO;
-        
-        self.doubleClickToRemovePoint = NO;
-        
-        self.addGestureEdge = YES;
-        
+        [self initOriginData];
     }
     return self;
+}
+-(void)initOriginData{
+    self.lineColor = [UIColor greenColor];
+    self.pointColor = [UIColor redColor];
+    self.fillColor = [UIColor orangeColor];
+    
+    self.lineWidth = 2;
+    self.pointWidth = 6;
+    self.selectPointWidth = 12;
+    self.gestureWidth = 50;
+    
+    self.autoOptimize = YES;
+    
+    self.hasEqualAfter = NO;
+    self.hasEqualBefore = NO;
+    
+    self.doubleClickToRemovePoint = NO;
+    
+    self.addGestureEdge = YES;
+    self.hasShowRoomSelect = NO;
+    self.intoEdit = YES;
+}
+
+- (void)dealloc {
+    DLog(@"✅%@ dealloc", NSStringFromClass([self class]));
 }
 
 
@@ -86,19 +112,51 @@
                                             @(CGPointMake(x+0, y+1*height)),
                                             @(CGPointMake(x+0, y+0.5*height))]];
     
-    
+    [self initGesture];
     [self refreshFrame];
-    
+}
+
+-(void)setGestureType:(LJGestureType)gestureType{
+    _gestureType = gestureType;
+    [self initGesture];
+}
+-(void)initGesture{
+    DLog(@"初始化 手势🍣");
     @weakify(self);
+    //双指缩放
+    [self addPinchGestureHandler:^(UIPinchGestureRecognizer *pinchGesture, UIView *itself) {
+        @strongify(self);
+        if (!self.intoEdit) {
+            return;
+        }
+        
+        if([pinchGesture state] == UIGestureRecognizerStateBegan) {
+            self.touchIndex = -2;
+            self.originCenter = self.center;
+            self.tempScalePointsArray = [NSMutableArray arrayWithArray:self.pointsArray];
+            
+            [self beginGesture];
+            return;
+            
+        }else if (pinchGesture.state == UIGestureRecognizerStateEnded ||
+                  pinchGesture.state == UIGestureRecognizerStateCancelled ||
+                  pinchGesture.state == UIGestureRecognizerStateFailed){
+            [self endGesture];
+            return;
+        }
+        
+        [self scaleView:pinchGesture.scale];
+    }];
+    
+    //移动或者拖拽
     [self addPanGestureHandler:^(UIPanGestureRecognizer *panGesture, UIView *itself) {
         @strongify(self);
-        
+        if (!self.intoEdit) {
+            return;
+        }
         if (panGesture.state == UIGestureRecognizerStateBegan) {
-            self.originCenter = self.center;
             
-//            CGPoint begingPoint = [panGesture locationInView:self];
             self.superBeginTouchPoint = [panGesture locationInView:self.superview];
-//            DLog(@"自身开始点%.1f, %.1f", begingPoint.x, begingPoint.y);
             DLog(@"父视图开始点%.1f, %.1f", self.superBeginTouchPoint.x, self.superBeginTouchPoint.y);
             
             //计算出需要移动的点
@@ -124,21 +182,19 @@
             
         }else if (panGesture.state == UIGestureRecognizerStateChanged) {
             
+            CGPoint translation = [panGesture translationInView:self.superview];
             if (self.touchIndex == -1){
                 //移动
-
+                [self offsetViewTranslation:translation];
+                
             }else if(self.touchIndex >= 0){
                 //拖拽点
-                CGPoint translation = [panGesture translationInView:self.superview];
-                
                 [self movePointOffset:translation];
-                
-                [panGesture setTranslation:CGPointZero inView:self.superview];
             }
+            [panGesture setTranslation:CGPointZero inView:self.superview];
         }else if (panGesture.state == UIGestureRecognizerStateEnded ||
                   panGesture.state == UIGestureRecognizerStateCancelled ||
                   panGesture.state == UIGestureRecognizerStateFailed){
-            
             
             [self endGesture];
         }
@@ -146,6 +202,9 @@
     
     [self addMultipleTap:2 gestureHandler:^(UITapGestureRecognizer *tapGesture, UIView *itself) {
         @strongify(self);
+        if (!self.intoEdit) {
+            return;
+        }
         if (self.doubleClickToRemovePoint) {
             NSInteger tempIndex = -1;
             CGFloat minLength = 1000;
@@ -190,6 +249,33 @@
         [self setNeedsDisplay];
     }];
 }
+#pragma mark - ================ Touch ==================
+-(void)touchesEnded:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event{
+    if (!self.intoEdit) {
+        return;
+    }
+    DLog(@"结束Touch👌");
+    //表示手势 没有被用到，需要手动结束手势
+    if ((self.gestureType & LJGestureType_TwoFingleScale) > 0 ||
+        ((self.gestureType & LJGestureType_OneFingleDragScale) > 0 || (self.gestureType & LJGestureType_OneFingleDragMove) > 0)){
+        [self endGesture];
+    }
+}
+
+-(void)touchesCancelled:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event{
+    //取消 表示手势被使用了，可以不用管了
+    DLog(@"取消Touch👌");
+    if (self.intoEdit &&
+        !self.customStartGesture &&
+        ((self.gestureType & LJGestureType_TwoFingleScale) > 0 ||
+         ((self.gestureType & LJGestureType_OneFingleDragScale) > 0 || (self.gestureType & LJGestureType_OneFingleDragMove) > 0))
+        ){
+        
+        [self endGesture];
+    }
+}
+
+
 
 -(void)selectedIndexCallBack:(NSInteger)index{
     self.selectedIndex = index;
@@ -207,6 +293,7 @@
 -(void)beginGesture{
     DLog(@"开始 手势🤚");
     [self.superview bringSubviewToFront:self];
+    self.customStartGesture = YES;
     self.hasEqualAfter = NO;
     self.hasEqualBefore = NO;
     
@@ -250,10 +337,49 @@
         [self setNeedsDisplay];
     }
     
-    
+    self.customStartGesture = NO;
     self.hasEqualAfter = NO;
     self.hasEqualBefore = NO;
     self.touchIndex = -2;
+}
+/**  缩放自身 大小的时候用到 */
+-(void)scaleView:(CGFloat)scale{
+//    DLog(@"缩放大小:%.2f", scale);
+    if (scale > 1) {
+        scale = log10(scale) + 1;
+    }
+    
+    if (scale < 1) {
+        scale = 1- log10(2-scale);
+    }
+    CGFloat offsetX = self.originCenter.x*scale - self.originCenter.x;
+    CGFloat offsetY = self.originCenter.y*scale - self.originCenter.y;
+    
+    
+    //缩放 每次都要以初始的点 来算。 这样比较跟手
+    for (NSInteger i = 0; i<self.self.tempScalePointsArray.count; i++) {
+        CGPoint subPoint = [self.tempScalePointsArray[i] CGPointValue];
+        subPoint.x = subPoint.x*scale - offsetX;
+        subPoint.y = subPoint.y*scale - offsetY;
+        
+        subPoint = [self checkPoint:subPoint];
+        self.pointsArray[i] = @(subPoint);
+    }
+    [self refreshFrame];
+    DLog(@"%.0f实际缩放大小:%.4f",self.lj_width, scale);
+}
+/**  移动整个视图 */
+-(void)offsetViewTranslation:(CGPoint)translation{
+    
+    for (NSInteger i = 0; i<self.pointsArray.count; i++) {
+        CGPoint subPoint = [self.pointsArray[i] CGPointValue];
+        subPoint.x = subPoint.x+translation.x;
+        subPoint.y = subPoint.y+translation.y;
+        
+        subPoint = [self checkPoint:subPoint];
+        self.pointsArray[i] = @(subPoint);
+    }
+    [self refreshFrame];
 }
 
 /**  移动一个点的时候， 就需要更新一次当前视图的Frame */
@@ -296,13 +422,32 @@
             self.hasEqualAfter = YES;
         }
     }
-    
+    newPoint = [self checkPoint:newPoint];
     //移动到 新的位置：
     self.pointsArray[self.touchIndex] = @(newPoint);
     DLog(@"移动中......%.1f, %.1f  新点:(%.1f,%.1f)", offset.x, offset.y, newPoint.x,newPoint.y);
     
     [self refreshFrame];
 }
+-(CGPoint)checkPoint:(CGPoint)subPoint{
+    CGRect superBounds = self.superview.bounds;
+    if (!CGRectContainsPoint(superBounds, subPoint)) {
+        if (subPoint.x < 0) {
+            subPoint.x = 0;
+        }
+        if (subPoint.y < 0) {
+            subPoint.y = 0;
+        }
+        if (subPoint.x > superBounds.size.width) {
+            subPoint.x = superBounds.size.width;
+        }
+        if (subPoint.y > superBounds.size.height) {
+            subPoint.y = superBounds.size.height;
+        }
+    }
+    return subPoint;
+}
+
 -(void)refreshFrame{
     //计算新的Frame
     CGFloat minX = 0;
@@ -342,6 +487,7 @@
     self.frame = CGRectMake(minX-frameEdge, minY-frameEdge, maxX-minX+frameEdge*2, maxY-minY+frameEdge*2);
     
     [self setNeedsDisplay];
+    
 }
 
 - (void)drawRect:(CGRect)rect {
@@ -433,7 +579,7 @@
     }
     
     shapeLayer.strokeColor = lineColor.CGColor;
-    shapeLayer.fillColor = [[UIColor blueColor] colorWithAlphaComponent:0.2].CGColor;
+    shapeLayer.fillColor = self.fillColor.CGColor;
     shapeLayer.lineWidth = width;
     
     [self.layer addSublayer:shapeLayer];
@@ -450,7 +596,7 @@
     for (NSInteger i = 0; i < pointArray.count; i++) {
         CGFloat pointWidth = self.pointWidth;
         if (i == self.selectedIndex) {
-            pointWidth *= 1.5;
+            pointWidth = self.selectPointWidth;
         }
         CGPoint subPoint = [pointArray[i] CGPointValue];
         CGRect roundRect = {subPoint.x-pointWidth/2.0, subPoint.y-pointWidth/2.0, pointWidth, pointWidth};
