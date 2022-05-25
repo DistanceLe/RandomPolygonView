@@ -18,6 +18,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, strong)UIColor* lineColor;
 @property(nonatomic, strong)UIColor* pointColor;
 @property(nonatomic, strong)UIColor* fillColor;
+/**  底层蒙板 的颜色, 视觉上的背景色。 真正的frame 可能会加上手势半径。*/
+@property(nonatomic, strong)UIColor* boardBackColor;
 
 /**  默认 2 */
 @property(assign, nonatomic)CGFloat lineWidth;
@@ -61,7 +63,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 #pragma mark - ================ 区域专用  控制刷新 位置大小 ==================
 @property(nonatomic, strong)id frameRoom;
-/**  缩放比例  左上角位置 和 宽高 */
+/**  缩放比例  整体放大，原数据不变 */
 @property(nonatomic, assign)CGFloat scaleSize;
 
 /**  高亮显示 已经选中的区域， 只在右边区域详情展开时候有效 */

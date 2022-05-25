@@ -64,6 +64,7 @@
     self.lineColor = [UIColor greenColor];
     self.pointColor = [UIColor redColor];
     self.fillColor = [UIColor orangeColor];
+    self.boardBackColor = [[UIColor lightGrayColor]colorWithAlphaComponent:0.1];
     
     self.lineWidth = 2;
     self.pointWidth = 6;
@@ -120,6 +121,23 @@
     _gestureType = gestureType;
     [self initGesture];
 }
+-(void)setFillColor:(UIColor *)fillColor{
+    _fillColor = fillColor;
+    [self setNeedsDisplay];
+}
+-(void)setLineColor:(UIColor *)lineColor{
+    _lineColor = lineColor;
+    [self setNeedsDisplay];
+}
+-(void)setPointColor:(UIColor *)pointColor{
+    _pointColor = pointColor;
+    [self setNeedsDisplay];
+}
+-(void)setBoardBackColor:(UIColor *)boardBackColor{
+    _boardBackColor = boardBackColor;
+    [self setNeedsDisplay];
+}
+
 -(void)initGesture{
     DLog(@"初始化 手势🍣");
     @weakify(self);
@@ -166,7 +184,7 @@
                 CGPoint subPoint = [self.pointsArray[i] CGPointValue];
                 
                 CGFloat tempLength = [self getLengthFromPoint:subPoint toPoint:self.superBeginTouchPoint];
-                if (tempLength < self.gestureWidth && minLength > tempLength) {
+                if (tempLength <= self.gestureWidth/2.0 && minLength > tempLength) {
                     tempIndex = i;
                     minLength = tempLength;
                 }
@@ -175,6 +193,13 @@
             self.touchIndex = tempIndex;
             if (tempIndex == -1) {
                 DLog(@"没有点❌");
+                CGPoint begingPoint = [panGesture locationInView:self];
+                if (self.addGestureEdge &&
+                    (begingPoint.x < self.gestureWidth/2.0 || begingPoint.x > self.lj_width-self.gestureWidth/2.0 ||
+                     begingPoint.y < self.gestureWidth/2.0 || begingPoint.y > self.lj_height-self.gestureWidth/2.0)) {
+                    //在实际大小和虚拟大小 之间，丢弃
+                    self.touchIndex = -2;
+                }
                 return;
             }
             DLog(@"✅开始点：%ld  %.1f, %.1f", self.touchIndex, self.superBeginTouchPoint.x, self.superBeginTouchPoint.y);
@@ -214,7 +239,7 @@
                 CGPoint subPoint = [self.pointsArray[i] CGPointValue];
                 
                 CGFloat tempLength = [self getLengthFromPoint:subPoint toPoint:superTouchPoint];
-                if (tempLength < self.gestureWidth && minLength > tempLength) {
+                if (tempLength <= self.gestureWidth/2.0 && minLength > tempLength) {
                     tempIndex = i;
                     minLength = tempLength;
                 }
@@ -503,6 +528,9 @@
     }
     [self.layerArray removeAllObjects];
     
+    
+    [self drawBoardBackLayer];
+    
     //画折线 了。。。
     if (self.pointsArray.count > 0) {
         
@@ -585,7 +613,19 @@
     [self.layer addSublayer:shapeLayer];
     [self.layerArray addObject:shapeLayer];
 }
-
+-(void)drawBoardBackLayer{
+    CGRect boardRect = self.bounds;
+    if (self.addGestureEdge) {
+        boardRect = CGRectMake(self.gestureWidth/2.0, self.gestureWidth/2.0, self.lj_width-self.gestureWidth, self.lj_height-self.gestureWidth);
+    }
+    CAShapeLayer* roundLayer = [CAShapeLayer layer];
+    roundLayer.frame = self.bounds;
+    CGPathRef path = CGPathCreateWithRect(boardRect, nil);
+    roundLayer.path = path;
+    roundLayer.fillColor = self.boardBackColor.CGColor;
+    [self.layer addSublayer:roundLayer];
+    [self.layerArray addObject:roundLayer];
+}
 /**  画小圆点 */
 -(void)addPointPathWithArray:(NSArray*)pointArray{
     
@@ -624,6 +664,8 @@
             if (self.selectedIndex == [self.pointsArray indexOfObject:subValue]) {
                 
                 [self selectedIndexCallBack:-1];
+            }else if (self.selectedIndex > [self.pointsArray indexOfObject:subValue]){
+                [self selectedIndexCallBack:self.selectedIndex-1];
             }
             
             if (self.pointDeletedHandler) {
@@ -642,6 +684,8 @@
     
     if (self.selectedIndex == index) {
         [self selectedIndexCallBack:-1];
+    }else if (self.selectedIndex > index){
+        [self selectedIndexCallBack:self.selectedIndex-1];
     }
     
     if (self.pointsArray.count > index) {
@@ -656,8 +700,70 @@
 
 
 
+#pragma mark - ================ 设置房间专用==================
+-(void)setScaleSize:(CGFloat)scaleSize{
+    _scaleSize = scaleSize;
+//
+//    if (self.frameRoom) {
+//        CGRect tempframe = CGRectMake(self.frameRoom.positionX*scaleSize,
+//                                      self.frameRoom.positionY*scaleSize,
+//                                      self.frameRoom.pdWidth*scaleSize,
+//                                      self.frameRoom.pdHeight*scaleSize);
+//
+//        BOOL hasChange = NO;
+//        if (tempframe.size.width > self.superview.lj_width || tempframe.size.height > self.superview.lj_height) {
+//            hasChange = YES;
+//            CGFloat tempScale = tempframe.size.width/self.superview.lj_width;
+//            CGFloat tempScale2 = tempframe.size.height/self.superview.lj_height;
+//
+//            tempScale = (tempScale>tempScale2?tempScale:tempScale2) * 3.0;
+//
+//            tempframe = CGRectMake(tempframe.origin.x/tempScale,
+//                                   tempframe.origin.y/tempScale,
+//                                   tempframe.size.width/tempScale,
+//                                   tempframe.size.height/tempScale
+//                                   );
+//        }
+//
+//        self.frame = tempframe;
+//
+//        if (self.lj_x < 0) {
+//            self.lj_x = 0;
+//            hasChange = YES;
+//        }
+//        if (self.lj_y < 0) {
+//            self.lj_y = 0;
+//            hasChange = YES;
+//        }
+//        if (self.lj_maxX > self.superview.lj_width) {
+//            self.lj_maxX = self.superview.lj_width;
+//            hasChange = YES;
+//        }
+//        if (self.lj_maxY > self.superview.lj_height) {
+//            self.lj_maxY = self.superview.lj_height;
+//            hasChange = YES;
+//        }
+//        if (self.countLabel) {
+//            self.countLabel.layer.cornerRadius = self.countLabel.lj_width/2.0;
+//        }
+//    }
+}
+-(void)saveRoomSize{
+//    if (self.countLabel) {
+//        self.countLabel.layer.cornerRadius = self.countLabel.lj_width/2.0;
+//    }
+//    self.frameRoom.positionX = self.lj_x/self.scaleSize;
+//    self.frameRoom.positionY = self.lj_y/self.scaleSize;
+//    self.frameRoom.pdWidth = self.lj_width/self.scaleSize;
+//    self.frameRoom.pdHeight = self.lj_height/self.scaleSize;
+//    [kDataManager savePublishToHistoryOperation:self.frameRoom];
+}
 
-
+-(void)showSelectImage:(BOOL)show{
+    
+    self.hasShowRoomSelect = show;
+    [self setNeedsDisplay];
+}
 
 
 @end
